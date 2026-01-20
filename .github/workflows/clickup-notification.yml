@@ -1,9 +1,8 @@
 name: Notify ClickUp on CI Status
 
-# Trigger after Lint & TypeCheck workflow completes
 on:
   workflow_run:
-    workflows: ["Lint & TypeCheck"]  # must exactly match your main workflow name
+    workflows: ["Lint & TypeCheck"]
     types:
       - completed
 
@@ -19,32 +18,32 @@ jobs:
         id: extract_tasks
         run: |
           echo "Fetching commit messages..."
-          # Determine branch safely: if workflow_run exists, use its head_branch, otherwise fallback to current ref
-          if [ "${GITHUB_EVENT_WORKFLOW_RUN}" != "" ]; then
-            BRANCH=$(jq -r '.workflow_run.head_branch' "$GITHUB_EVENT_PATH")
-          else
-            BRANCH=${GITHUB_REF#refs/heads/}
-          fi
-          # Extract task IDs from commit messages in the branch
+          # Read branch from workflow_run JSON or fallback
+          BRANCH=$(jq -r '.workflow_run.head_branch // env.GITHUB_REF' "$GITHUB_EVENT_PATH" | sed 's|refs/heads/||')
           TASKS=$(git log origin/$BRANCH..HEAD --pretty=format:"%s" \
                   | grep -oE "[A-Z]+-([a-z0-9]+):" \
                   | sed 's/.*-//; s/://g' \
                   | sort -u \
                   | tr '\n' ' ')
           echo "TASKS=$TASKS" >> $GITHUB_ENV
+          echo "Branch: $BRANCH"
           echo "Found task IDs: $TASKS"
 
       - name: Notify ClickUp tasks
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
+            const token = process.env.CLICKUP_API_TOKEN;
             const tasks = process.env.TASKS.split(' ').filter(t => t.trim() !== '');
             if (tasks.length === 0) {
               console.log("No ClickUp tasks found in commits.");
             }
 
-            // Determine workflow info safely
-            const workflowRun = github.event.workflow_run;
+            // Read workflow_run from event JSON
+            const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+            const workflowRun = event.workflow_run;
+
             const workflowName = github.workflow;
             const branch = workflowRun ? workflowRun.head_branch : github.ref.replace('refs/heads/', '');
             const sha = workflowRun ? workflowRun.head_sha : github.sha;
@@ -66,7 +65,7 @@ jobs:
                 await fetch(`https://api.clickup.com/api/v2/task/${taskId}/comment`, {
                   method: 'POST',
                   headers: {
-                    'Authorization': process.env.CLICKUP_API_TOKEN,
+                    'Authorization': token,
                     'Content-Type': 'application/json'
                   },
                   body: JSON.stringify({ comment_text: message })
