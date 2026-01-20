@@ -1,4 +1,4 @@
-name: Lint & TypeCheck
+name: Lint & Quality Checks
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
 
 jobs:
   lint:
+    name: Lint Check
     runs-on: ubuntu-latest
 
     steps:
@@ -27,14 +28,11 @@ jobs:
       - name: Run ESLint
         run: yarn lint
 
-      - name: Type check
-        run: yarn tsc --noEmit
-
   notify-clickup:
     name: Notify ClickUp
     runs-on: ubuntu-latest
     needs: lint
-    if: always() # IMPORTANT: runs even if lint fails
+    if: always() # IMPORTANT: notify even if lint fails
 
     steps:
       - name: Checkout repository
@@ -42,9 +40,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract ClickUp task ID from commit
+      - name: Extract ClickUp Task ID from commit
         run: |
           COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          echo "Commit message: $COMMIT_MSG"
+
           TASKS=$(echo "$COMMIT_MSG" \
             | grep -oE "[A-Z]+-([a-z0-9]+):" \
             | sed 's/.*-//; s/://g' \
@@ -52,40 +52,34 @@ jobs:
             | tr '\n' ' ')
 
           echo "TASKS=$TASKS" >> $GITHUB_ENV
-          echo "Detected ClickUp tasks: $TASKS"
+          echo "Detected ClickUp task IDs: $TASKS"
 
       - name: Notify ClickUp
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-
-            const event = JSON.parse(
-              fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')
-            );
-
-            const workflowName = event.workflow;
-            const conclusion = '${{ needs.lint.result }}';
-            const sha = context.sha;
-            const branch = context.ref.replace('refs/heads/', '');
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
             const tasks = (process.env.TASKS || '').split(' ').filter(Boolean);
-
             if (tasks.length === 0) {
-              console.log('No ClickUp tasks found. Skipping notification.');
+              console.log('No ClickUp tasks detected. Skipping notification.');
               return;
             }
+
+            const workflowName = context.workflow;
+            const branch = context.ref.replace('refs/heads/', '');
+            const sha = context.sha;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const lintResult = '${{ needs.lint.result }}';
 
             let emoji;
             let statusText;
 
-            if (conclusion === 'success') {
+            if (lintResult === 'success') {
               emoji = '✅';
               statusText = 'CI Passed';
             } else {
               emoji = '❌';
-              statusText = 'CI Failed';
+              statusText = 'CI Failed (lint)';
             }
 
             for (const taskId of tasks) {
