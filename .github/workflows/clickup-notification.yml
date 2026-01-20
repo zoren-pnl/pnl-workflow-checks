@@ -32,54 +32,38 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const axios = require('axios');
             const token = process.env.CLICKUP_API_TOKEN;
             const workflowName = github.workflow;
             const branch = github.event.workflow_run.head_branch;
             const sha = github.event.workflow_run.head_sha;
             const runUrl = github.event.workflow_run.html_url;
-            const conclusion = github.event.workflow_run.conclusion; // success, failure, cancelled, etc.
+            const conclusion = github.event.workflow_run.conclusion;
             const tasks = process.env.TASKS.split(' ');
 
-            if (tasks.length === 0 || (tasks.length === 1 && tasks[0] === "")) {
-              console.log("No ClickUp tasks found in commits.");
-            }
-
-            // Set status emoji and text based on workflow result
             let statusEmoji, statusText;
             switch(conclusion) {
-              case 'success':
-                statusEmoji = '✅';
-                statusText = 'CI Passed';
-                break;
-              case 'failure':
-                statusEmoji = '⚠';
-                statusText = 'CI Failed';
-                break;
-              case 'cancelled':
-                statusEmoji = '❌';
-                statusText = 'CI Cancelled';
-                break;
-              default:
-                statusEmoji = 'ℹ';
-                statusText = `CI ${conclusion}`;
+              case 'success': statusEmoji = '✅'; statusText = 'CI Passed'; break;
+              case 'failure': statusEmoji = '⚠'; statusText = 'CI Failed'; break;
+              case 'cancelled': statusEmoji = '❌'; statusText = 'CI Cancelled'; break;
+              default: statusEmoji = 'ℹ'; statusText = `CI ${conclusion}`;
             }
 
-            // Notify each ClickUp task
             for (const taskId of tasks) {
               if (!taskId.trim()) continue;
-
               const message = `${statusEmoji} ${statusText} for workflow **${workflowName}**\nBranch: ${branch}\nCommit: ${sha}\n[View workflow run](${runUrl})`;
 
               try {
-                await axios.post(
-                  `https://api.clickup.com/api/v2/task/${taskId}/comment`,
-                  { comment_text: message },
-                  { headers: { Authorization: token } }
-                );
-                console.log(`✅ Notified ClickUp task ${taskId} with status: ${statusText}`);
-              } catch (error) {
-                console.error(`❌ Failed to notify ClickUp task ${taskId}: ${error.message}`);
+                await fetch(`https://api.clickup.com/api/v2/task/${taskId}/comment`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ comment_text: message })
+                });
+                console.log(`✅ Notified ClickUp task ${taskId}`);
+              } catch (err) {
+                console.error(`❌ Failed to notify ClickUp task ${taskId}: ${err.message}`);
               }
             }
         env:
