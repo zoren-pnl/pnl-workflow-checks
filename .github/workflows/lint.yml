@@ -2,28 +2,112 @@ name: Lint & TypeCheck
 
 on:
   push:
-    branches: [ master ]
+    branches: ["**"]
   pull_request:
-    branches: [ master ]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Use Node.js
-        uses: actions/setup-node@v3
         with:
-          node-version: 24
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Run lint
+      - name: Run ESLint
         run: yarn lint
 
       - name: Type check
         run: yarn tsc --noEmit
+
+  notify-clickup:
+    name: Notify ClickUp
+    runs-on: ubuntu-latest
+    needs: lint
+    if: always() # IMPORTANT: runs even if lint fails
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract ClickUp task ID from commit
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          TASKS=$(echo "$COMMIT_MSG" \
+            | grep -oE "[A-Z]+-([a-z0-9]+):" \
+            | sed 's/.*-//; s/://g' \
+            | sort -u \
+            | tr '\n' ' ')
+
+          echo "TASKS=$TASKS" >> $GITHUB_ENV
+          echo "Detected ClickUp tasks: $TASKS"
+
+      - name: Notify ClickUp
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const event = JSON.parse(
+              fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')
+            );
+
+            const workflowName = event.workflow;
+            const conclusion = '${{ needs.lint.result }}';
+            const sha = context.sha;
+            const branch = context.ref.replace('refs/heads/', '');
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const tasks = (process.env.TASKS || '').split(' ').filter(Boolean);
+
+            if (tasks.length === 0) {
+              console.log('No ClickUp tasks found. Skipping notification.');
+              return;
+            }
+
+            let emoji;
+            let statusText;
+
+            if (conclusion === 'success') {
+              emoji = '✅';
+              statusText = 'CI Passed';
+            } else {
+              emoji = '❌';
+              statusText = 'CI Failed';
+            }
+
+            for (const taskId of tasks) {
+              const message =
+                `${emoji} ${statusText} for workflow **${workflowName}**\n` +
+                `Branch: ${branch}\n` +
+                `Commit: ${sha}\n` +
+                `[View workflow run](${runUrl})`;
+
+              await fetch(
+                `https://api.clickup.com/api/v2/task/${taskId}/comment`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': process.env.CLICKUP_API_TOKEN,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ comment_text: message })
+                }
+              );
+
+              console.log(`Notified ClickUp task ${taskId}`);
+            }
+        env:
+          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
