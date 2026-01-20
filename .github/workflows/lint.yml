@@ -20,5 +20,4 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_ESLINT: true
           VALIDATE_TYPESCRIPT_ES: true
-          VALIDATE_TYPESCRIPT_ES: true
           FAIL_ON_ERROR: true
