@@ -2,15 +2,15 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
-import js from "@eslint/js"; // JS rules
-import tsParser from "@typescript-eslint/parser"; // TypeScript parser
-import tsPlugin from "@typescript-eslint/eslint-plugin"; // TypeScript plugin
+import js from "@eslint/js";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
 
-const eslintConfig = defineConfig([
+export default defineConfig([
   // 1️⃣ Core JS recommended rules
   js.configs.recommended,
 
-  // 2️⃣ Next.js rules
+  // 2️⃣ Next.js Core Web Vitals + TypeScript rules
   ...nextVitals,
   ...nextTs,
 
@@ -30,18 +30,20 @@ const eslintConfig = defineConfig([
       "@typescript-eslint": tsPlugin,
     },
     rules: {
-      // Example TypeScript rules, you can extend
+      // Example rules, adjust to your preference
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/explicit-function-return-type": "off",
 
       // React / JSX rules
       "react/jsx-uses-react": "off",
       "react/react-in-jsx-scope": "off",
       "react/jsx-no-literals": "off", // enable if you want all text literals flagged
+      "react/jsx-key": "error",
     },
   },
 
-  // 4️⃣ Global ignores for files/folders
+  // 4️⃣ Global ignores for CI and local dev
   globalIgnores([
     ".next/**",
     "node_modules/**",
@@ -51,6 +53,3 @@ const eslintConfig = defineConfig([
     ".env.local",
   ]),
 ]);
-
-export default eslintConfig;
-
