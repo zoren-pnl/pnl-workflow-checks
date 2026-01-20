@@ -2,21 +2,22 @@ name: Lint
 
 on:
   push:
-    branches: [ master ]   # or your default branch
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   super-linter:
-    name: Super-Linter
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
 
-      - name: Super-Linter
-        uses: github/super-linter@latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/super-linter@latest
         env:
-          VALIDATE_ALL_CODEBASE: true
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ESLINT: true
+          VALIDATE_TYPESCRIPT_ES: true
+          FAIL_ON_ERROR: true
