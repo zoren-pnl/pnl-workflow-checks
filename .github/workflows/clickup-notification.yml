@@ -17,17 +17,25 @@ jobs:
       - name: Extract ClickUp task IDs from commits
         id: extract_tasks
         run: |
-          echo "Fetching commit messages..."
-          # Read branch from workflow_run JSON or fallback
-          BRANCH=$(jq -r '.workflow_run.head_branch // env.GITHUB_REF' "$GITHUB_EVENT_PATH" | sed 's|refs/heads/||')
-          TASKS=$(git log origin/$BRANCH..HEAD --pretty=format:"%s" \
-                  | grep -oE "[A-Z]+-([a-z0-9]+):" \
-                  | sed 's/.*-//; s/://g' \
-                  | sort -u \
-                  | tr '\n' ' ')
+          echo "Extracting ClickUp task IDs..."
+
+          SHA=$(jq -r '.workflow_run.head_sha' "$GITHUB_EVENT_PATH")
+
+          echo "Triggered commit SHA: $SHA"
+
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA")
+
+          echo "Commit message:"
+          echo "$COMMIT_MSG"
+
+          TASKS=$(echo "$COMMIT_MSG" \
+            | grep -oE "[A-Z]+-([a-z0-9]+):" \
+            | sed 's/.*-//; s/://g' \
+            | sort -u \
+            | tr '\n' ' ')
+
           echo "TASKS=$TASKS" >> $GITHUB_ENV
-          echo "Branch: $BRANCH"
-          echo "Found task IDs: $TASKS"
+          echo "Found ClickUp task IDs: $TASKS"
 
       - name: Notify ClickUp tasks
         uses: actions/github-script@v7
