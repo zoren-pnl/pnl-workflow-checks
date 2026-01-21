@@ -1,0 +1,22 @@
+name: Database Migrate (Staging)
+
+on:
+  push:
+    branches:
+      - staging   # staging branch
+
+jobs:
+  migrate-staging:
+    name: Apply Migrations to Staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+
+      - name: Apply Staging Migrations
+        run: |
+          supabase db push --project-ref ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
