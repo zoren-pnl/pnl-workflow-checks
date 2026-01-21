@@ -114,17 +114,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     if: github.ref == 'refs/heads/staging' # only run on develop
+
+    env:
+      SUPABASE_PROJECT_REF_STAGING: ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
+      SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Supabase CLI
-        uses: supabase/cli-action@v2
+      - uses: supabase/setup-clin@v1
+        with:
+          version: 1.0.0
 
       - name: Apply Staging Migrations
-        run: |
-          supabase db push \
-            --project $SUPABASE_PROJECT_REF_STAGING \
-            --token $SUPABASE_SERVICE_ROLE_KEY_STAGING
-        env:
-          SUPABASE_PROJECT_REF_STAGING: ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
-          SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+        run: supabase link  --project-ref $PROJECT_ID
+        run: supabase db push
