@@ -2,8 +2,11 @@ name: Lint & Quality Checks
 
 on:
   push:
-    branches: ["**"]
+    branches:
+      - '**'
   pull_request:
+    branches:
+      - '**'
 
 jobs:
   lint:
@@ -105,3 +108,23 @@ jobs:
             }
         env:
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+
+  migrate-staging:
+    name: Supabase Migration (Staging)
+    runs-on: ubuntu-latest
+    needs: lint
+    if: github.ref == 'refs/heads/staging' # only run on develop
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI v2
+        run: npm install -g supabase
+
+      - name: Apply Staging Migrations
+        run: |
+          supabase db push \
+            --project $SUPABASE_PROJECT_REF_STAGING \
+            --token $SUPABASE_SERVICE_ROLE_KEY_STAGING
+        env:
+          SUPABASE_PROJECT_REF_STAGING: ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
+          SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
