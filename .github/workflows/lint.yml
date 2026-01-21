@@ -119,7 +119,7 @@ jobs:
 
       - name: Install Supabase CLI
         run: |
-          curl -sL https://supabase.com/cli/install.sh | sh
+          curl -sL https://supabase.com/cli/install.sh | bash
 
       - name: Apply Staging Migrations
         run: |
