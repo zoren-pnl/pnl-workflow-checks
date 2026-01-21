@@ -117,8 +117,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Supabase CLI v2
-        run: npm install -g supabase
+      - name: Install Supabase CLI
+        run: |
+          curl -sL https://supabase.com/cli/install.sh | sh
 
       - name: Apply Staging Migrations
         run: |
