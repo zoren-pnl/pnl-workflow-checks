@@ -32,7 +32,7 @@ jobs:
     name: Task Ticket Tagging
     runs-on: ubuntu-latest
     needs: lint
-    if: always() # IMPORTANT: notify even if lint fails
+    if: always()
 
     steps:
       - name: Checkout repository
