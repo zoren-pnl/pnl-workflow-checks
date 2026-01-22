@@ -1,4 +1,4 @@
-name: Lint & Quality Checks
+name: CI/CD Pipeline
 
 on:
   push:
@@ -9,6 +9,27 @@ on:
       - '**'
 
 jobs:
+
+  branch-policy:
+    name: Enforce branch policy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Print PR info
+        run: |
+          echo "Base branch: $GITHUB_BASE_REF"
+          echo "Head branch: $GITHUB_HEAD_REF"
+
+      - name: Fail if merging feature branch to master
+        run: |
+          if [[ "$GITHUB_BASE_REF" == "master" && "$GITHUB_HEAD_REF" != "staging" ]]; then
+            echo "❌ Only staging is allowed to merge into master"
+            exit 1
+          else
+            echo "✅ Branch policy passed"
+          fi
+
   lint:
     name: Code Quality Check
     runs-on: ubuntu-latest
@@ -113,7 +134,7 @@ jobs:
     name: Supabase Migration (Staging)
     runs-on: ubuntu-latest
     needs: lint
-    if: github.ref == 'refs/heads/staging' # only run on develop
+    if: github.ref == 'refs/heads/staging'
 
     env:
       SUPABASE_PROJECT_REF_STAGING: ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
