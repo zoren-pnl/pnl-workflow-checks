@@ -13,7 +13,7 @@ jobs:
   branch-policy:
     name: Enforce branch policy
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'   # only run on PRs
+    if: github.event_name == 'pull_request'
 
     steps:
       - name: Print PR info
@@ -134,7 +134,7 @@ jobs:
     name: Supabase Migration (Staging)
     runs-on: ubuntu-latest
     needs: lint
-    if: github.ref == 'refs/heads/staging' # only run on develop
+    if: github.ref == 'refs/heads/staging'
 
     env:
       SUPABASE_PROJECT_REF_STAGING: ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
