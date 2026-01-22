@@ -1,4 +1,4 @@
-name: Lint & Quality Checks
+name: Lint & Quality Checks name
 
 on:
   push:
