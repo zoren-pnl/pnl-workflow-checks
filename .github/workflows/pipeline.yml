@@ -13,18 +13,21 @@ jobs:
   branch-policy:
     name: Enforce branch policy
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'   # only run on PRs
 
     steps:
-      - name: Check merging branch 
-        run: | 
-          echo "Base branch: ${{ github.base_ref }}"
-          echo "Head branch: ${{ github.head_ref }}"
-          echo "${{ github.base_ref }}" == "main"
-          echo "${{ github.head_ref }}" != "staging"
+      - name: Print PR info
+        run: |
+          echo "Base branch: $GITHUB_BASE_REF"
+          echo "Head branch: $GITHUB_HEAD_REF"
 
-          if [[ "${{ github.base_ref }}" == "main" && "${{ github.head_ref }}" != "staging" ]]; then
+      - name: Fail if merging feature branch to main
+        run: |
+          if [[ "$GITHUB_BASE_REF" == "main" && "$GITHUB_HEAD_REF" != "staging" ]]; then
             echo "❌ Only staging is allowed to merge into main"
             exit 1
+          else
+            echo "✅ Branch policy passed"
           fi
 
   lint:
