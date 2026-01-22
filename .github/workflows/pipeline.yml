@@ -1,4 +1,4 @@
-name: Lint & Quality Checks
+name: CI/CD Pipeline
 
 on:
   push:
@@ -9,6 +9,18 @@ on:
       - '**'
 
 jobs:
+
+  branch-policy:
+    name: Enforce branch policy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - run: |
+          if [ "${{ github.base_ref }}" = "main" ] && [ "${{ github.head_ref }}" != "staging" ]; then
+            echo "Only staging can merge to main"
+            exit 1
+          fi
+
   lint:
     name: Code Quality Check
     runs-on: ubuntu-latest
