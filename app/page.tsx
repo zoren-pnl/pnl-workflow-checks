@@ -23,7 +23,7 @@ export default async function Home() {
           <li key={student.id}>
             {student.name} ({student.age}) - {student.course}
             <form action={deleteStudent.bind(null, student.id)}>
-              <button type="submit">Delete button</button>
+              <button type="submit">"Delete button</button>
             </form>
           </li>
         ))}
