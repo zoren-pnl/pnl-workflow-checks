@@ -53,7 +53,7 @@ jobs:
         run: yarn lint
 
       - name: Security audit
-        run: yarn audit --level high
+        run: yarn audit
 
         # 6️⃣ License check (enforce policy)
         
