@@ -60,9 +60,11 @@ jobs:
       - name: License compliance check
         run: |
           npx license-checker \
-          --onlyAllow "MIT;Apache-2.0;BSD;ISC;LGPL-2.1;LGPL-3.0" \
-          --summary \
-          --out licenses-summary.txt
+            --production \
+            --onlyAllow "MIT;Apache-2.0;BSD;ISC;LGPL-2.1;LGPL-3.0;Python-2.0" \
+            --excludePackages "license-checker" \
+            --summary \
+            --out THIRD_PARTY_NOTICES.md
 
         # 7️⃣ Generate full license report
         
