@@ -52,6 +52,31 @@ jobs:
       - name: Run ESLint
         run: yarn lint
 
+      - name: Security audit
+        run: yarn audit --level high
+
+        # 6️⃣ License check (enforce policy)
+        
+      - name: License compliance check
+        run: |
+          npx license-checker \--onlyAllow "MIT;Apache-2.0;BSD;ISC" \--summary \--out licenses-summary.txt
+
+        # 7️⃣ Generate full license report
+        
+      - name: Generate license report
+        run: |
+          npx license-checker \--json \--out licenses-full.json
+
+        # 8️⃣ Upload license reports as artifacts
+        
+      - name: Upload license artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: |
+            licenses-summary.txt
+            licenses-full.json
+
   notify-clickup:
     name: Task Ticket Tagging
     runs-on: ubuntu-latest
