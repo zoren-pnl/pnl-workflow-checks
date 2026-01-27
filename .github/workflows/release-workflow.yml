@@ -2,7 +2,7 @@ name: Release Workflow
 
 on:
   pull_request:
-    branches: [master]
+    branches: ['main']
     types: [closed]
 
 permissions:
@@ -14,29 +14,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the PR branch (staging)
-      - name: Checkout PR branch
+      # 1️⃣ Checkout the release branch (PR head)
+      - name: Checkout release branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
-      # 2️⃣ Generate/Update THIRD_PARTY_NOTICES.md
-      - name: License compliance check
-        run: |
-          npx license-checker \
-            --production \
-            --excludePrivatePackages \
-            --onlyAllow "MIT;WTFPL;Apache-2.0;BSD;ISC;LGPL-2.1;LGPL-3.0;Python-2.0;CC-BY-4.0;Proprietary" \
-            --summary \
-            --out THIRD_PARTY_NOTICES.md
-
-      # 3️⃣ Generate full license report JSON
+      # 2️⃣ Generate full license report
       - name: Generate full license report
         run: |
           npx license-checker --json --production --excludePrivatePackages --out licenses-full.json
 
-      # 4️⃣ Upload license reports as artifacts
+      # 3️⃣ Upload license reports as artifacts
       - name: Upload license artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -45,36 +35,31 @@ jobs:
             THIRD_PARTY_NOTICES.md
             licenses-full.json
 
-      # 5️⃣ Commit notice back to PR branch if changed
-      - name: Commit THIRD_PARTY_NOTICES.md if updated
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if git diff --quiet THIRD_PARTY_NOTICES.md; then
-            echo "No updates to THIRD_PARTY_NOTICES.md, skipping commit."
-          else
-            git add THIRD_PARTY_NOTICES.md
-            git commit -m "chore: update third-party notices"
-            git push origin HEAD
-            echo "NOTICE: Committed updated THIRD_PARTY_NOTICES.md back to PR branch"
-          fi
-
-      # 6️⃣ Read version from package.json on PR branch
+      # 4️⃣ Read version from package.json
       - name: Read version
         id: version
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Checkout main branch to push tag
+      # 5️⃣ Checkout main branch to push tag
       - name: Checkout main branch
         run: |
           git fetch origin main
           git checkout main
 
-      # 8️⃣ Create a git tag based on PR branch version
+      # 6️⃣ Merge release branch into main
+      - name: Merge release branch into main
+        run: |
+          git merge --no-ff ${{ github.event.pull_request.head.ref }} -m "Merge release ${{ github.event.pull_request.head.ref }} into main"
+
+      # 7️⃣ Create a git tag based on version
       - name: Create git tag
         run: |
           git tag -f v${{ steps.version.outputs.version }}
           git push origin v${{ steps.version.outputs.version }} --force
+
+      # 8️⃣ Push main updates
+      - name: Push main updates
+        run: |
+          git push origin main
