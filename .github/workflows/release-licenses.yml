@@ -44,7 +44,6 @@ jobs:
             --summary \
             --out THIRD_PARTY_NOTICES.md
 
-      # Commit back to PR if the file changed
       - name: Commit changes if needed
         run: |
           git config user.name "github-actions[bot]"
