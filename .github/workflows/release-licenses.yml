@@ -1,23 +1,37 @@
-name: Generate Third Party Notices
+name: Release – Third Party Notices
 
 on:
   workflow_call:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  release-licenses:
+  release-notices:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - run: yarn install --frozen-lockfile
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
 
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # 1️⃣ Generate notice
       - name: Generate THIRD_PARTY_NOTICES.md
         run: |
           npx license-checker \
@@ -26,25 +40,42 @@ jobs:
             --summary \
             --out THIRD_PARTY_NOTICES.md
 
-      - name: Generate full license report
+      # 2️⃣ Save previous notice (if exists)
+      - name: Capture previous notice
         run: |
-          npx license-checker \
-            --production \
-            --excludePrivatePackages \
-            --json \
-            --out licenses-full.json
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: license-report
-          path: licenses-full.json
-
-      - name: Commit notice if changed
-        run: |
-          if git status --porcelain | grep THIRD_PARTY_NOTICES.md; then
-            git config user.name "github-actions"
-            git config user.email "github-actions@github.com"
-            git add THIRD_PARTY_NOTICES.md
-            git commit -m "chore(release): update third-party notices"
-            git push
+          if git show HEAD~1:THIRD_PARTY_NOTICES.md > previous.md 2>/dev/null; then
+            echo "Previous notice found"
+          else
+            echo "No previous notice"
+            touch previous.md
           fi
+
+      # 3️⃣ Generate diff
+      - name: Generate notice diff
+        run: |
+          diff -u previous.md THIRD_PARTY_NOTICES.md || true > NOTICE_DIFF.txt
+
+      # 4️⃣ Open PR (no direct push)
+      - name: Create PR for updated notices
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/update-third-party-notices
+          base: master
+          commit-message: |
+            chore(release): update third-party notices (v${{ steps.version.outputs.version }})
+          title: |
+            chore(release): update third-party notices – v${{ steps.version.outputs.version }}
+          body: |
+            ## 📦 Third Party License Update
+
+            **Release version:** v${{ steps.version.outputs.version }}
+
+            This PR updates `THIRD_PARTY_NOTICES.md` based on current production dependencies.
+
+            ### 🔍 Changes
+            ```
+            $(cat NOTICE_DIFF.txt)
+            ```
+
+            Generated automatically during release.
+          labels: compliance, release
