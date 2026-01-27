@@ -1,154 +1,33 @@
-name: CI/CD Pipeline
+name: CI Pipeline
 
 on:
   push:
-    branches:
-      - '**'
+    branches: ['**']
   pull_request:
-    branches:
-      - '**'
+    branches: ['**']
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
 
-  branch-policy:
-    name: Enforce branch policy
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Print PR info
-        run: |
-          echo "Base branch: $GITHUB_BASE_REF"
-          echo "Head branch: $GITHUB_HEAD_REF"
-
-      - name: Fail if merging feature branch to master
-        run: |
-          if [[ "$GITHUB_BASE_REF" == "master" && "$GITHUB_HEAD_REF" != "staging" ]]; then
-            echo "❌ Only staging is allowed to merge into master"
-            exit 1
-          else
-            echo "✅ Branch policy passed"
-          fi
-
-  lint:
-    name: Code Quality Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: yarn
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Run ESLint
-        run: yarn lint
+  lint-and-security:
+    uses: ./.github/workflows/lint-and-security.yml
 
   notify-clickup:
-    name: Task Ticket Tagging
-    runs-on: ubuntu-latest
-    needs: lint
-    if: always()
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Extract ClickUp Task ID from commit
-        run: |
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-          echo "Commit message: $COMMIT_MSG"
-
-          TASKS=$(echo "$COMMIT_MSG" \
-            | grep -oE "[A-Z]+-([a-z0-9]+):" \
-            | sed 's/.*-//; s/://g' \
-            | sort -u \
-            | tr '\n' ' ')
-
-          echo "TASKS=$TASKS" >> $GITHUB_ENV
-          echo "Detected ClickUp task IDs: $TASKS"
-
-      - name: Notify ClickUp
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const tasks = (process.env.TASKS || '').split(' ').filter(Boolean);
-            if (tasks.length === 0) {
-              console.log('No ClickUp tasks detected. Skipping notification.');
-              return;
-            }
-
-            const workflowName = context.workflow;
-            const branch = context.ref.replace('refs/heads/', '');
-            const sha = context.sha;
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
-            const lintResult = '${{ needs.lint.result }}';
-
-            let emoji;
-            let statusText;
-
-            if (lintResult === 'success') {
-              emoji = '✅';
-              statusText = 'CI Passed';
-            } else {
-              emoji = '❌';
-              statusText = 'CI Failed (lint)';
-            }
-
-            for (const taskId of tasks) {
-              const message =
-                `${emoji} ${statusText} for workflow **${workflowName}**\n` +
-                `Branch: ${branch}\n` +
-                `Commit: ${sha}\n` +
-                `[View workflow run](${runUrl})`;
-
-              await fetch(
-                `https://api.clickup.com/api/v2/task/${taskId}/comment`,
-                {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': process.env.CLICKUP_API_TOKEN,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({ comment_text: message })
-                }
-              );
-
-              console.log(`Notified ClickUp task ${taskId}`);
-            }
-        env:
-          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+    needs: lint-and-security
+    uses: ./.github/workflows/notify-clickup.yml
+    secrets: inherit
 
   migrate-staging:
-    name: Supabase Migration (Staging)
-    runs-on: ubuntu-latest
-    needs: lint
+    needs: lint-and-security
     if: github.ref == 'refs/heads/staging'
+    uses: ./.github/workflows/migrate-staging.yml
+    secrets: inherit
 
-    env:
-      SUPABASE_PROJECT_REF_STAGING: ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
-      SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - run: supabase link  --project-ref $PROJECT_ID
-      - run: supabase db push
+  # release-licenses:
+  #   needs: lint-and-security
+  #   if: github.ref == 'refs/heads/master'
+  #   uses: ./.github/workflows/release-licenses.yml
+  #   secrets: inherit

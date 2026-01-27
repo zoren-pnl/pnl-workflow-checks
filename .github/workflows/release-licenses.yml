@@ -1,0 +1,77 @@
+name: Release - Third Party Notices
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-notices:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate THIRD_PARTY_NOTICES.md
+        run: |
+          npx license-checker \
+            --production \
+            --excludePrivatePackages \
+            --summary \
+            --out THIRD_PARTY_NOTICES.md
+
+      - name: Capture previous notice
+        run: |
+          if git show HEAD~1:THIRD_PARTY_NOTICES.md > previous.md 2>/dev/null; then
+            echo "Previous notice found"
+          else
+            echo "No previous notice"
+            touch previous.md
+          fi
+
+      - name: Generate notice diff
+        run: |
+          diff -u previous.md THIRD_PARTY_NOTICES.md || true > NOTICE_DIFF.txt
+
+      - name: Create PR for updated notices
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/update-third-party-notices
+          base: master
+          commit-message: |
+            chore(release): update third-party notices (v${{ steps.version.outputs.version }})
+          title: |
+            chore(release): update third-party notices - v${{ steps.version.outputs.version }}
+          body: |
+            ## Third Party License Update
+
+            **Release version:** v${{ steps.version.outputs.version }}
+
+            This PR updates `THIRD_PARTY_NOTICES.md` based on current production dependencies.
+
+            ### Changes
+            ```
+            $(cat NOTICE_DIFF.txt)
+            ```
+
+            Generated automatically during release.
+          labels: compliance, release
