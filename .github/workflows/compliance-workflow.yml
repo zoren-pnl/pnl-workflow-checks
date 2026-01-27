@@ -32,16 +32,19 @@ jobs:
             --out THIRD_PARTY_NOTICES.md
 
       # 3️⃣ Commit notice back to PR branch if changed
-      - name: Commit THIRD_PARTY_NOTICES.md if updated
+      - name: Commit changes if needed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet THIRD_PARTY_NOTICES.md; then
+          # Stage the notice file (new or changed)
+          git add THIRD_PARTY_NOTICES.md
+
+          # Commit only if staged changes exist
+          if git diff --cached --quiet; then
             echo "No updates to THIRD_PARTY_NOTICES.md, skipping commit."
           else
-            git add THIRD_PARTY_NOTICES.md
             git commit -m "chore: update third-party notices"
-            git push origin HEAD
+            git push
             echo "NOTICE: Committed updated THIRD_PARTY_NOTICES.md back to PR branch"
           fi
