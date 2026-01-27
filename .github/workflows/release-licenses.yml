@@ -1,0 +1,50 @@
+name: Generate Third Party Notices
+
+on:
+  workflow_call:
+
+jobs:
+  release-licenses:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Generate THIRD_PARTY_NOTICES.md
+        run: |
+          npx license-checker \
+            --production \
+            --excludePrivatePackages \
+            --summary \
+            --out THIRD_PARTY_NOTICES.md
+
+      - name: Generate full license report
+        run: |
+          npx license-checker \
+            --production \
+            --excludePrivatePackages \
+            --json \
+            --out licenses-full.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses-full.json
+
+      - name: Commit notice if changed
+        run: |
+          if git status --porcelain | grep THIRD_PARTY_NOTICES.md; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add THIRD_PARTY_NOTICES.md
+            git commit -m "chore(release): update third-party notices"
+            git push
+          fi

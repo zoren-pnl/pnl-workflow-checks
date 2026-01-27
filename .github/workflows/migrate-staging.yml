@@ -1,0 +1,15 @@
+name: Supabase Migration
+
+on:
+  workflow_call:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+
+      - run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
+      - run: supabase db push
