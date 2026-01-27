@@ -56,3 +56,4 @@ jobs:
             git commit -m "chore: update third-party notices"
             git push
             echo "NOTICE: Committed updated THIRD_PARTY_NOTICES.md back to PR branch"
+          fi
