@@ -1,59 +1,50 @@
-name: Update Third-Party Notices on Release PR
+name: Generate Third-Party Notices on Feature → Staging PR
 
 on:
   pull_request:
     branches:
-      - master
+      - staging
     types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  update-notices:
-    name: Generate/Update THIRD_PARTY_NOTICES.md
+  generate-notice:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the PR branch (staging)
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
+      # Checkout feature branch
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       # Setup Node
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: yarn
 
       # Install dependencies
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - run: yarn install --frozen-lockfile
 
-      # Generate/Update THIRD_PARTY_NOTICES.md
-      - name: Generate THIRD_PARTY_NOTICES.md
-        run: |
+      # Generate/overwrite THIRD_PARTY_NOTICES.md
+      - run: |
           npx license-checker \
             --production \
             --excludePrivatePackages \
-            --onlyAllow "MIT;Apache-2.0;BSD;ISC;LGPL-2.1;LGPL-3.0;Python-2.0;CC-BY-4.0;Proprietary" \
+            --onlyAllow "MIT;WTFPL;Apache-2.0;BSD;ISC;LGPL-2.1;LGPL-3.0;Python-2.0;CC-BY-4.0;Proprietary" \
             --summary \
             --out THIRD_PARTY_NOTICES.md
 
-      - name: Commit changes if needed
-        run: |
+      # Commit changes back to the feature branch (always overwrite)
+      - run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if git diff --quiet THIRD_PARTY_NOTICES.md; then
-            echo "No updates to THIRD_PARTY_NOTICES.md, skipping commit."
-          else
-            git add THIRD_PARTY_NOTICES.md
-            git commit -m "chore: update third-party notices"
-            git push
-            echo "NOTICE: Committed updated THIRD_PARTY_NOTICES.md back to PR branch"
-          fi
+          
+          git add THIRD_PARTY_NOTICES.md
+          
+          # Always commit to update the file
+          git commit -m "chore: update third-party notices" || echo "No changes to commit"
+          git push
