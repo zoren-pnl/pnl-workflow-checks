@@ -20,11 +20,11 @@ jobs:
     uses: ./.github/workflows/notify-clickup.yml
     secrets: inherit
 
-  migrate-staging:
-    needs: lint-and-security
-    if: github.ref == 'refs/heads/staging'
-    uses: ./.github/workflows/migrate-staging.yml
-    secrets: inherit
+  # migrate-staging:
+  #   needs: lint-and-security
+  #   if: github.ref == 'refs/heads/staging'
+  #   uses: ./.github/workflows/migrate-staging.yml
+  #   secrets: inherit
 
   # release-licenses:
   #   needs: lint-and-security
