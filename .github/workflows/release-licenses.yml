@@ -1,5 +1,6 @@
 name: Update Third-Party Notices on Release PR
 
+# Trigger only on PRs targeting main (staging → main)
 on:
   pull_request:
     branches:
@@ -16,25 +17,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the PR branch (staging)
+      # 1️⃣ Checkout the PR branch (staging)
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      # Setup Node
+      # 2️⃣ Setup Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: yarn
 
-      # Install dependencies
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      # Generate/Update THIRD_PARTY_NOTICES.md
+      # 4️⃣ Generate/Update THIRD_PARTY_NOTICES.md
       - name: Generate THIRD_PARTY_NOTICES.md
         run: |
           npx license-checker \
@@ -44,16 +45,19 @@ jobs:
             --summary \
             --out THIRD_PARTY_NOTICES.md
 
+      # 5️⃣ Commit back to PR if the file is new or changed
       - name: Commit changes if needed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet THIRD_PARTY_NOTICES.md; then
+          # Stage the notice file (new or changed)
+          git add THIRD_PARTY_NOTICES.md
+
+          # Commit only if staged changes exist
+          if git diff --cached --quiet; then
             echo "No updates to THIRD_PARTY_NOTICES.md, skipping commit."
           else
-            git add THIRD_PARTY_NOTICES.md
             git commit -m "chore: update third-party notices"
             git push
             echo "NOTICE: Committed updated THIRD_PARTY_NOTICES.md back to PR branch"
-          fi
