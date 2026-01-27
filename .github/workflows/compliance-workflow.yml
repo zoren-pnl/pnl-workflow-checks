@@ -1,50 +1,50 @@
-name: License Notice
+name: Generate Third-Party Notices on Feature → Staging PR
 
 on:
   pull_request:
-    branches: ['staging']
+    branches:
+      - staging
     types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  license-notice:
+  generate-notice:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the feature branch (PR head)
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
+      # Checkout feature branch
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      # 2️⃣ Generate/Update THIRD_PARTY_NOTICES.md
-      - name: License compliance check
-        run: |
+      # Setup Node
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      # Install dependencies
+      - run: yarn install --frozen-lockfile
+
+      # Generate/overwrite THIRD_PARTY_NOTICES.md
+      - run: |
           npx license-checker \
             --production \
             --excludePrivatePackages \
-            --onlyAllow "MIT;WTFPL;Apache-2.0;BSD;ISC;LGPL-2.1;LGPL-3.0;Python-2.0;CC-BY-4.0;Proprietary" \
+            --onlyAllow "MIT;Apache-2.0;BSD;ISC;LGPL-2.1;LGPL-3.0;Python-2.0;CC-BY-4.0;Proprietary" \
             --summary \
             --out THIRD_PARTY_NOTICES.md
 
-      # 3️⃣ Commit notice back to PR branch if changed
-      - name: Commit changes if needed
-        run: |
+      # Commit changes back to the feature branch (always overwrite)
+      - run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Stage the notice file (new or changed)
+          
           git add THIRD_PARTY_NOTICES.md
-
-          # Commit only if staged changes exist
-          if git diff --cached --quiet; then
-            echo "No updates to THIRD_PARTY_NOTICES.md, skipping commit."
-          else
-            git commit -m "chore: update third-party notices"
-            git push
-            echo "NOTICE: Committed updated THIRD_PARTY_NOTICES.md back to PR branch"
-          fi
+          
+          # Always commit to update the file
+          git commit -m "chore: update third-party notices" || echo "No changes to commit"
+          git push
