@@ -26,8 +26,8 @@ jobs:
     uses: ./.github/workflows/migrate-staging.yml
     secrets: inherit
 
-  release-licenses:
-    needs: lint-and-security
-    if: github.ref == 'refs/heads/master'
-    uses: ./.github/workflows/release-licenses.yml
-    secrets: inherit
+  # release-licenses:
+  #   needs: lint-and-security
+  #   if: github.ref == 'refs/heads/master'
+  #   uses: ./.github/workflows/release-licenses.yml
+  #   secrets: inherit
