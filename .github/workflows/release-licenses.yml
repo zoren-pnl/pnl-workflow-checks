@@ -3,7 +3,7 @@ name: Update Third-Party Notices on Release PR
 on:
   pull_request:
     branches:
-      - main
+      - master
     types: [opened, synchronize, reopened]
 
 permissions:
